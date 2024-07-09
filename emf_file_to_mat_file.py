@@ -1,43 +1,55 @@
-# main.py
-
+import pyedflib
 import scipy.io
-import argparse
 import os
+import numpy as np
+import datetime
 
 
-def emf_to_mat(emf_file_path, output_directory):
-    # Read and process the EMF file
-    # In this part, we will read the EMF file and convert it into a suitable data structure for MATLAB format
-    # This depends on the content of the file
-    data = read_emf_file(emf_file_path)
+def edf_to_mat(edf_file_path, output_directory):
+    # Read the EDF file
+    f = pyedflib.EdfReader(edf_file_path)
+    n = f.signals_in_file
+
+    signal_labels = f.getSignalLabels()
+    signals = np.zeros((n, f.getNSamples()[0]))
+
+    for i in np.arange(n):
+        signals[i, :] = f.readSignal(i)
+
+    # Convert header datetime to string
+    header = f.getHeader()
+    for key, value in header.items():
+        if isinstance(value, (list, tuple)):
+            header[key] = [v.isoformat() if isinstance(v, (np.datetime64, datetime.datetime)) else v for v in value]
+        elif isinstance(value, (np.datetime64, datetime.datetime)):
+            header[key] = value.isoformat()
+
+    data = {
+        'signals': signals,
+        'signal_labels': signal_labels,
+        'header': header
+    }
+
+    f.close()
+
+    # Ensure the output directory exists
+    if not os.path.exists(output_directory):
+        os.makedirs(output_directory)
 
     # Output file name and path
-    base_name = os.path.basename(emf_file_path).replace('.emf', '.mat')
+    base_name = os.path.basename(edf_file_path).replace('.edf', '.mat')
     output_file_path = os.path.join(output_directory, base_name)
 
     # Save the MAT file
     scipy.io.savemat(output_file_path, data)
 
 
-def read_emf_file(emf_file_path):
-    # Function to read the EMF file and extract data
-    # Here we should read the EMF file and convert it into a suitable Python data structure
-    # For example, it could be a dictionary
-    # This part depends entirely on the format and content of the EMF file
-    # Creating an example dictionary
-    data = {
-        'example_data': [1, 2, 3, 4, 5]
-    }
-    return data
-
-
 def main():
-    parser = argparse.ArgumentParser(description="Convert EMF file to MAT file")
-    parser.add_argument('emf_file_path', type=str, help="Path to the EMF file")
-    parser.add_argument('output_directory', type=str, help="Directory to save the MAT file")
-    args = parser.parse_args()
+    # Argümanlar doğrudan burada tanımlanıyor
+    edf_file_path = '/Users/anilerman/edf_file_to_mat_file/S001R01.edf'
+    output_directory = '/Users/anilerman/edf_file_to_mat_file/output'  # Çıkış dizininizi buraya yazın
 
-    emf_to_mat(args.emf_file_path, args.output_directory)
+    edf_to_mat(edf_file_path, output_directory)
 
 
 if __name__ == "__main__":
